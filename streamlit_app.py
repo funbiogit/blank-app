@@ -1,4 +1,11 @@
 import streamlit as st
+import io
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 st.set_page_config(page_title="개념기반 탐구 수업 설계", layout="wide")
 st.title("📘 개념기반 탐구 수업 설계 Web App")
@@ -46,28 +53,109 @@ with st.expander("📚 수업 흐름 구성"):
 
 st.success("설계가 완료되었습니다. 필요시 저장 기능을 추가하세요.")
 
-from fpdf import FPDF
+# PDF 생성 함수
+def create_pdf():
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    
+    # 한글 스타일 설정
+    korean_style = ParagraphStyle(
+        'Korean',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+    )
+    
+    title_style = ParagraphStyle(
+        'KoreanTitle',
+        parent=styles['Title'],
+        fontName='Helvetica',
+        fontSize=16,
+        leading=20,
+    )
+    
+    story = []
+    
+    # 제목
+    story.append(Paragraph("개념기반 탐구 수업 설계", title_style))
+    story.append(Spacer(1, 20))
+    
+    # 1단계
+    story.append(Paragraph("1단계: 바람직한 학습 결과", korean_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"핵심 아이디어: {core_idea}", korean_style))
+    story.append(Paragraph(f"성취 기준: {standard}", korean_style))
+    story.append(Paragraph(f"지식·이해: {knowledge}", korean_style))
+    story.append(Paragraph(f"과정·기능: {skills}", korean_style))
+    story.append(Paragraph(f"가치·태도: {values}", korean_style))
+    story.append(Paragraph(f"개념 렌즈: {', '.join(concept_lens)}", korean_style))
+    story.append(Paragraph(f"주도 개념: {driving_concept}", korean_style))
+    story.append(Spacer(1, 20))
+    
+    # 2단계
+    story.append(Paragraph("2단계: 총괄평가", korean_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"학습 목표 재진술: {eval_goal}", korean_style))
+    story.append(Paragraph(f"평가 유형: {eval_type}", korean_style))
+    story.append(Paragraph(f"과제 설명: {eval_task}", korean_style))
+    story.append(Spacer(1, 20))
+    
+    # 3단계
+    story.append(Paragraph("3단계: 교수학습계획", korean_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"도입 활동: {intro}", korean_style))
+    story.append(Paragraph(f"탐구 활동: {inquiry}", korean_style))
+    story.append(Paragraph(f"정리 및 반성 활동: {reflection}", korean_style))
+    story.append(Paragraph(f"학습 지원 전략: {support}", korean_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
+# PDF 다운로드 버튼
 if st.button("📄 PDF로 내보내기"):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.add_font('NanumGothic', '', 'fonts/NanumGothic.ttf', uni=True)
-    pdf.set_font('NanumGothic', size=12)
+    try:
+        pdf_buffer = create_pdf()
+        st.download_button(
+            label="📥 PDF 다운로드",
+            data=pdf_buffer,
+            file_name="lesson_plan.pdf",
+            mime="application/pdf"
+        )
+        st.success("PDF가 생성되었습니다!")
+    except Exception as e:
+        st.error(f"PDF 생성 중 오류가 발생했습니다: {str(e)}")
+        st.info("대신 텍스트 파일로 다운로드할 수 있습니다.")
+        
+        # 텍스트 파일 대안
+        text_content = f"""📘 개념기반 탐구 수업 설계
 
+[1단계: 바람직한 학습 결과]
+핵심 아이디어: {core_idea}
+성취 기준: {standard}
+지식·이해: {knowledge}
+과정·기능: {skills}
+가치·태도: {values}
+개념 렌즈: {', '.join(concept_lens)}
+주도 개념: {driving_concept}
 
-    # 내용 구성
-    pdf.multi_cell(0, 10, f"📘 개념기반 탐구 수업 설계\n", align='L')
-    pdf.multi_cell(0, 10, f"[1단계: 바람직한 학습 결과]\n핵심 아이디어: {core_idea}\n성취 기준: {standard}\n\n"
-                          f"내용 요소 - 지식: {knowledge}\n과정·기능: {skills}\n가치·태도: {values}\n"
-                          f"개념 렌즈: {', '.join(concept_lens)}\n주도 개념: {driving_concept}\n\n", align='L')
+[2단계: 총괄평가]
+학습 목표 재진술: {eval_goal}
+평가 유형: {eval_type}
+과제 설명: {eval_task}
 
-    pdf.multi_cell(0, 10, f"[2단계: 총괄평가]\n학습 목표 재진술: {eval_goal}\n평가 유형: {eval_type}\n과제 설명: {eval_task}\n\n", align='L')
-
-    pdf.multi_cell(0, 10, f"[3단계: 교수학습계획]\n도입 활동: {intro}\n탐구 활동: {inquiry}\n"
-                          f"정리 및 반성 활동: {reflection}\n학습 지원 전략: {support}", align='L')
-
-    # PDF 저장
-    pdf.output("/tmp/lesson_plan.pdf")
-
-    with open("/tmp/lesson_plan.pdf", "rb") as f:
-        st.download_button("📥 PDF 다운로드", f, file_name="lesson_plan.pdf", mime="application/pdf")
+[3단계: 교수학습계획]
+도입 활동: {intro}
+탐구 활동: {inquiry}
+정리 및 반성 활동: {reflection}
+학습 지원 전략: {support}
+"""
+        
+        st.download_button(
+            label="📄 텍스트 파일 다운로드",
+            data=text_content,
+            file_name="lesson_plan.txt",
+            mime="text/plain"
+        )
